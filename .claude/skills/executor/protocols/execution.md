@@ -1,28 +1,28 @@
-- id: spec
-  skill: superpowers brainstorming
-  will: From Will to a spec. Open a draft pull request against main
-  deliverance: spec, pull request
+id: envision
+skill: superpowers brainstorming
+will: from Will to a spec. open a draft pull request against main
+deliverance: spec, pull request
 
-- id: grill
-  skill: mattpocock grill-with-docs
-  will: Review spec
-  perceive: spec
-  deliverance: spec
+id: vision enlightenment
+skill: mattpocock grill-with-docs
+will: review spec
+perceive: spec
+deliverance: spec
 
-- id: plan
-  skill: superpowers writing-plans
-  will: From spec to implementation plan.
-  perceive: spec
-  deliverance: plan
+id: scribe
+skill: superpowers writing-plans
+will: from spec to implementation plan
+perceive: spec
+deliverance: plan
 
-- id: plan-review
-  skill: gstack plan-eng-review
-  will: Review plan
-  perceive: plan
-  deliverance: plan
+id: reckoning
+skill: gstack plan-eng-review
+will: review plan
+perceive: plan
+deliverance: plan
 
-- id: execute
-  skill: superpowers executing-plans
-  will: From plan to working code
-  perceive: plan
-  deliverance: code
+id: verdict
+skill: superpowers executing-plans
+will: from plan to working code
+perceive: plan
+deliverance: code
