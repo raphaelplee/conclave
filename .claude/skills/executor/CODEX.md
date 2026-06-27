@@ -1,6 +1,6 @@
 - D.R.Y. including comments in code
 - S.O.L.I.D.
 - Y.A.G.N.I.
-- If in doubt, check the codebase, documents and internet (as of today)
+- If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
 - Don't reinvent the wheel, favor buy over build
