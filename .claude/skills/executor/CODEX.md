@@ -1,8 +1,7 @@
-- D.R.Y.
+- D.R.Y. Do not write comments. Context should be in the documents
 - S.O.L.I.D.
 - Y.A.G.N.I.
 - If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
-- Don't reinvent the wheel
+- Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own
 - Verify every single constraint
-- Self-documenting code
