@@ -3,5 +3,5 @@
 - Y.A.G.N.I.
 - If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
-- Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own
+- Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own code
 - Verify every single constraint
