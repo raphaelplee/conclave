@@ -6,4 +6,10 @@ disable-model-invocation: true
 ---
 
 # executor
+Download these repositories to the session:
+https://github.com/mattpocock/skills
+https://github.com/garrytan/gstack
+https://github.com/obra/Superpowers
+https://github.com/Egonex-AI/Understand-Anything
+
 Choose only 1 [protocol](protocols) according to the will, then run from top to bottom, never stops before the bottom. Bound by the [Codex](CODEX.md). Always reaffirm the existence and the Codex binding of every single deliverance.
