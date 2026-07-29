@@ -1,5 +1,6 @@
 - D.R.Y. Do not write comments. Context should be in the documents
 - S.O.L.I.D.
+- Composition over Inheritance
 - Y.A.G.N.I.
 - If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
