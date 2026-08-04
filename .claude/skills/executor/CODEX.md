@@ -8,4 +8,4 @@
 - Verify every single constraint
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - Utilise Author credentials instead of AI credentials
-- All of the CODEX rules apply to every sub-agents and every sub-sessions
+- Apply TAO to every single sub-agent and every single sub-session
