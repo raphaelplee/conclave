@@ -7,3 +7,4 @@
 - Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own code
 - Verify every single constraint
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
+- Utilise Author credentials instead of AI credentials
