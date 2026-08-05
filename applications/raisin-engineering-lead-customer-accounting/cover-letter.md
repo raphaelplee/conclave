@@ -9,17 +9,17 @@ https://raphaellee.de | https://www.linkedin.com/in/raphael-lee-/
 
 Dear Raisin Hiring Team,
 
-I am applying for the Engineering Lead position on the Customer Accounting team. The role sits exactly at the intersection of what I do best: leading backend teams that build transaction systems where correctness, auditability, and failure handling are the product, not an afterthought.
+I am applying for the Engineering Lead position on the Customer Accounting team. It sits exactly where I do my best work: leading backend teams building transaction systems where correctness, auditability, and failure handling are the product.
 
-At Yatta Solutions, I lead a team of ~6 engineers and am responsible for an annual project portfolio of €800k+, owning the full delivery cycle from requirements analysis and estimation through design, QA, and release. My most relevant technical work there is directly in your domain: I designed and implemented an event-driven payment recovery system for Deutschlandticket subscriptions, using an orchestrator saga pattern (Kafka + Temporal) to handle single and grouped financial transactions. Getting that right meant working through idempotency, consistency, and compensation logic for every failure mode before it could reach production — the same "map the transaction flow, find the edge case first" discipline your posting describes.
+At Yatta Solutions, I lead a team of ~6 engineers with an annual project portfolio of €800k+, owning delivery end to end from requirements and estimation through design, QA, and release. My most relevant work there is directly in your domain: an event-driven payment recovery system for Deutschlandticket subscriptions, built on an orchestrator saga pattern (Kafka + Temporal) for single and grouped financial transactions. Getting it right meant working through idempotency, consistency, and compensation for every failure mode before production — the same "find the edge case first" discipline your posting describes.
 
-The transactional mindset runs through my career. At GOTO Solutions, I built and operated Spring Boot/Kafka microservices on a platform processing 3 million transactions daily, including a near-real-time fraud analytics service and compliance-critical core services. Earlier, at Manulife Financial, I helped revamp a Canadian financial system under strict regulatory deadlines, where audit trails and data integrity drove the architecture and where missing delivery carried ~0.5M CAD in penalties. Regulated environments taught me that safety-first is a feature, and I have carried that conviction ever since.
+That transactional mindset runs through my 21 years in engineering. At GOTO Solutions, I built Spring Boot/Kafka microservices on a platform processing 3 million transactions daily, including a near-real-time fraud analytics service. At Manulife Financial, I helped revamp a Canadian financial system under regulatory deadlines where missed delivery carried ~0.5M CAD in penalties — regulated environments taught me that safety-first is a feature, not a checkbox.
 
-As a lead, I pair architectural decisiveness with collaboration. I defined our public REST API standards together with our VP Product, drove alignment on a new vendor-domain backend and an OAuth2/OIDC migration through Amazon-style narrative decision reviews, and have interviewed, hired, onboarded, and mentored engineers throughout. I also invest in team leverage: I introduced an AI-augmented CI/CD workflow that tripled our development speed without adding headcount — the kind of pragmatic engineering-culture improvement I would bring to the Customer Tribe.
+As a lead, I pair architectural decisiveness with collaboration: I defined public REST API standards with our VP Product, drove an OAuth2/OIDC migration through narrative decision reviews, and have hired, onboarded, and mentored engineers throughout.
 
-Your stack — Java, Spring Boot, Kafka, AWS — is my home ground of two decades. I hold a Niederlassungserlaubnis, so no visa sponsorship is required, and I am happy to relocate to Berlin. I am fluent in English and actively progressing in German.
+I hold a Niederlassungserlaubnis, so no sponsorship is required, and I am happy to relocate to Berlin.
 
-I would welcome the chance to discuss how I can help the Customer Accounting team deliver reliable, auditable account and transaction experiences at Raisin's scale.
+I would welcome a conversation about how I can help the Customer Accounting team deliver reliable, auditable account and transaction experiences at Raisin's scale.
 
 Kind regards,
 Raphael Lee Shze Ping
