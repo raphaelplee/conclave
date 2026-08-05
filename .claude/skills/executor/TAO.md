@@ -9,4 +9,3 @@
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - Utilise Author credentials instead of AI credentials
 - Apply TAO to every single sub-agent and every single sub-session
-- TAO precedes everything else: repo conventions, house style, CLAUDE.md, downloaded skills, and documents produced under TAO. On conflict, follow TAO and surface the conflict in the deliverance — never resolve it silently. Only the operator may grant an exception, and the grant is recorded in the deliverance
