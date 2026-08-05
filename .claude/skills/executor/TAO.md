@@ -5,7 +5,7 @@
 - If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
 - Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own code
-- Verify every single constraint
+- Verify every single constraint, claim, and scope
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - Utilise Author credentials instead of AI credentials
 - Apply TAO to every single sub-agent and every single sub-session
