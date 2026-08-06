@@ -8,4 +8,3 @@
 - Verify every single constraint, claim, and scope
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - Utilise Author credentials instead of AI credentials
-- Apply TAO to every single sub-agent and every single sub-session
