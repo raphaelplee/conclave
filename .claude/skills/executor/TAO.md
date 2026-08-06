@@ -1,4 +1,4 @@
-- D.R.Y. Do not write comments. Context should be in the documents
+- D.R.Y. Do not write comments in code. Context should be in the documents
 - S.O.L.I.D.
 - Composition over Inheritance
 - Y.A.G.N.I.
