@@ -1,4 +1,4 @@
-- D.R.Y. Move all the comments in the code to the documents
+- D.R.Y. Write the comments in the documents instead of the code
 - S.O.L.I.D
 - Composition over Inheritance
 - Y.A.G.N.I
