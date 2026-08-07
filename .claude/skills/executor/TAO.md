@@ -1,7 +1,7 @@
-- D.R.Y. Do not write comments in code. Context should be in the documents
-- S.O.L.I.D.
+- D.R.Y. Move all the comments in the code to the documents
+- S.O.L.I.D
 - Composition over Inheritance
-- Y.A.G.N.I.
+- Y.A.G.N.I
 - If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
 - Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own code
