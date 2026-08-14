@@ -2,7 +2,7 @@
 - S.O.L.I.D
 - Seperation of Concern. Composition over Inheritance
 - Y.A.G.N.I
-- K.I.S.S.
+- K.I.S.S
 - If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
 - Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own code
