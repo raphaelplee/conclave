@@ -1,11 +1,12 @@
 - D.R.Y. Write the comments in the documents instead of the code
 - S.O.L.I.D
-- Seperation of Concern. Composition over Inheritance
 - Y.A.G.N.I
 - K.I.S.S
-- If in doubt, check the codebase, documents (verify documents against latest state and latest code) and internet (as of today)
 - Principle of Least Astonishment/Surprise
-- Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing own code
+- Separation of Concern. Composition over Inheritance
+- List all the domains and industries involved. Refer to the latest global standards in the domains and industries.
+- Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing your own code
+- If in doubt, check the codebase, documents (verify documents against the latest state and latest code) and the internet (as of today)
 - Verify every single constraint
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - Utilise Author credentials instead of AI credentials
