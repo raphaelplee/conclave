@@ -1,4 +1,4 @@
-- D.R.Y. Write the comments in the documents instead of the code
+- D.R.Y. Move all the comments from the code into the documents
 - S.O.L.I.D
 - Y.A.G.N.I
 - K.I.S.S
