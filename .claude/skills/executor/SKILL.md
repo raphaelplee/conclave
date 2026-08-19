@@ -6,7 +6,7 @@ disable-model-invocation: true
 ---
 
 # executor
-Download these repositories to the session:
+Download these repositories to the session but do not load them into the context unless specifically asked:
 - https://github.com/mattpocock/skills
 - https://github.com/garrytan/gstack
 - https://github.com/obra/Superpowers
