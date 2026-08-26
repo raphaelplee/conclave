@@ -1,4 +1,4 @@
-- D.R.Y. A single source of truth. Move all the comments from the code into the documents
+- D.R.Y. A single source of truth. Code as Documentation. Move all the comments from the code into the documents
 - S.O.L.I.D
 - Y.A.G.N.I
 - K.I.S.S
