@@ -165,12 +165,12 @@ branch. `invite()` becomes `@Transactional` so the outbox row shares the write's
 `@Audited` aspect runs around the proxy and is unaffected). `idempotencyKey = membershipId + ":" +
 occurredAt.toEpochMilli()` — a renewal is a new key, a redelivered record is the same key.
 
-Locale: the vendor backend never knew a locale. The event carries the value of an optional
-`Accept-Language`-independent request attribute? No — YAGNI: `MembershipService.invite` gains a
-`String locale` argument, `InviteRequest` gains an optional `locale` field (default `en`), and the gateway
-`MembershipInviteInput` gains an optional `locale: String` the portal fills from `useLocale()`
-(the portal's `InviteEmailsModal` already has a "Invitation language" control: keys
-`members.invite.localeLabel/localeHint`). Wire compatibility: absent = `en`.
+Locale: the vendor backend never knew a locale, but the portal's `InviteEmailsModal` already hands
+`{ emails, locale }` to `onInvite` and `MembersClient` drops the locale today. So: `InviteRequest` gains an
+optional `locale` (BCP-47 language, default `en`, validated against `en|de`), the gateway
+`MembershipInviteInput` gains `locale: String` (optional), `InternalMembershipClient.invite` forwards it,
+`inviteMembers(emails, locale)` in the portal sends it, and `MembershipService.invite(actingUser, emails,
+locale)` stamps it on the event. Absent = `en` at every hop.
 
 Externalization (`eventing` module): `EventExternalizationConfiguration` bean with
 `.select(annotatedAsExternalized()).mapping(MembershipInvitedEvent.class, MembershipInvitedMapper::toAvro)`,
@@ -198,8 +198,8 @@ Delete `memberships/**`, `portalroles/**`, `audit/**`, `platform/audit/**`, `pla
 drop the `openfga`, `resilience4j`, `kafka-avro-serializer`, `spring-boot-starter-aspectj` dependencies
 and the `avro-maven-plugin`; drop `audit.*`, `openfga.*`, `resilience4j.*`, `marketplace.*`,
 `memberships.*` properties; README/CONTEXT.md/`docs/implementation-notes.md` updated. Flyway V0004–V0007
-stay (applied history) with a `V0008__memberships_moved_to_identity_service.sql` no-op comment? No —
-YAGNI: nothing is dropped this release; no migration is added. `ModularityTests` still green.
+stay untouched (applied history; the tables are dropped one release later by a follow-up ticket, so no
+migration is added now). `ModularityTests` still green.
 
 ## 5. Marketplace (MP-11945, MP-11946, MP-11947, MP-11949, MP-11950, MP-11951)
 
@@ -328,10 +328,21 @@ snapshot test into `target/mail-samples/` and attached to the PR.
   2. variant: `userService.findUserByEmail(email)` (the invitability service's own lookup) → known
      activated account = variant 1, else variant 2.
   3. target: `RedirectTargetPolicy.validate("/" + locale + "/members?invited=1")`.
-  4. links: variant 1 `MagicLinkIssuer.issueSignIn` with a `VendorPortalRedirectAnchor`
-     (`RedirectAnchorType.SOLUTION_PORTAL` — `RedirectServiceImpl` maps it to `solutionPortalRoot`;
-     the Vendor Portal already authenticates through that anchor per `SolutionPortalMagicLinkTest`);
-     variant 2 `issueSignUp` on a freshly created user + `AddToAccountLinkBuilder.build(email, target, locale)`.
+  4. links: the anchor is `UrlBasedRedirectAnchor.of(portalOrigin + target.path(), ...)` — after
+     `POST /chckout/redirect/verify` confirms the address, `TokenServiceImpl.updateTokenCookie` sets the
+     `YSC` token cookie on the API host, including the `/oauth2` path the authorization server reads, and
+     the browser is sent to `redirectRequest.getUrl()` unchanged when `skipAutostart` is set (no `?q=`
+     for the Next.js portal to ignore). The portal then has no `gateway_sid`, starts the SSO flow with
+     `continueTo=/{locale}/members?invited=1`, the authorization server recognises the cookie and issues
+     the code without a screen, and `SessionProvider` activates the membership on landing. This is the
+     same cookie mechanics the existing OAuth-anchor magic link relies on
+     (`RedirectServiceImpl.getSignInContinuationUrl`). `RedirectController.validateFrontendUrl` is not on
+     this path (it guards the deprecated `GET /?q=` endpoint), but the portal origin must still match
+     `platform.redirects.host-validation` where that regex is restrictive (production lists `yatta.de`;
+     `portal.yatta.de` matches). Variant 1: `MagicLinkIssuer.issueSignIn(email, userUuid, target, null,
+     locale, anchor)` with `skipAutostart = true`; variant 2: `issueSignUp` on a freshly created,
+     non-activated user (`userService.createUser(false)` + primary address) plus
+     `AddToAccountLinkBuilder.build(email, target, locale)`.
   5. model: contributors + `vendorName` (`VendorService.findByNamespaceId`), `inviterEmail`
      (`AccountRepository.findByPublicId(invitedBy)` → primary e-mail), `expiresAt` (formatted with
      `DateTimeFormatter.ofLocalizedDateTime(MEDIUM)` in the mail locale, `TimeProvider` for now).
@@ -451,3 +462,39 @@ Optional Istio DENY policy `identity-service-internal-mesh-only` (flag off). `st
 - The e2e specs and the stage rollout of identity-service depend on GitOps manifests in another repo
   (not in scope; noted in the identity-service README).
 - The `X-Gateway-Client` check is new; the gateway already sends the header on every internal call.
+
+## 12. Design tree (grill-with-docs, self-resolved from code facts)
+
+Each question is a decision the user would normally take; the run is autonomous, so the recommended
+answer was taken and the fact that decided it is named. Reversing any of them is a spec change, not a
+code change.
+
+| # | Question | Decision | Deciding fact |
+|---|----------|----------|---------------|
+| Q1 | Replay vendor-backend Flyway history in identity-service or write the final shape? | Final shape (3 migrations) | A fresh database has no history; V0005 undoes half of V0004 |
+| Q2 | Move or copy `platform/identity`, `platform/id`, `platform/problem`, `platform/events`? | Copy | `views/**` (stays) needs `EndUserId`, `ViewId`, problem handling and the resubmitter |
+| Q3 | Avro through Modulith's outbox: global Avro serializer, second template, or per-type delegation? | `DelegatingByTypeSerializer` on the Boot `ProducerFactory` | `AuditConfiguration` javadoc documents the regression a global Avro serializer caused; Spring Kafka ships the delegating serializer |
+| Q4 | Where does the invitation locale come from? | Portal control → gateway → identity-service → event | `InviteEmailsModal` already emits `{ emails, locale }`; `MembersClient` drops it |
+| Q5 | How does a server-made magic link end in the Next.js portal? | URL-based anchor + `skipAutostart`; silent SSO via the `YSC` cookie at `/oauth2` | `TokenServiceImpl.updateTokenCookie`, `RedirectServiceImpl.getResponseParameters` (plain URL when no autostart model) |
+| Q6 | Marketplace module package? | `com.yatta.platform.invitation` | `de.yatta.*` is legacy and outside every `@ComponentScan` base package |
+| Q7 | Whole-system `ApplicationModules.verify()` in the marketplace? | Only `invitation.verifyDependencies(modules)` plus OPEN markers on `mail`, `account`, `vendor`, `shared` | Legacy-era target domains have no module boundaries yet; the ticket asks for the invitations module to be verified, not the monolith |
+| Q8 | `activate` field: evolve or add? | Add `activateWithResult`, deprecate `activate` | GraphQL cannot change `Boolean!` to an object compatibly; wire tests pin the boolean |
+| Q9 | Reason vocabulary on the wire? | `none` (joined), `already_member`, `expired`, `not_found` | The ticket's list; `none` keeps `activated=true` cases symmetric |
+| Q10 | Where does the invitee see "expired"? | On the `vendor-scope-unavailable` screen, not on `/members` | A refused activation never reaches `/members`; `showToast` is a no-op before the shell mounts |
+| Q11 | i18n namespace for the landing copy? | `members.activation.*`, `session.invitation*` | `members.invite.*` already exists; `members.invited.*` would collide visually |
+| Q12 | Idempotency: check-then-send or insert-then-send? | Insert first in the sending transaction; failure rolls back | A redelivery must not send twice; a failed send must stay replayable from the DLT |
+| Q13 | Copy the `.avsc` into the marketplace or read `GenericRecord`? | `GenericRecord` by field name | Single source of truth is the registry; the audit schema is likewise not registered by the marketplace build |
+| Q14 | Two-commit rule for the legacy classes touched? | Followed literally (Commit 1 pure move, Commit 2 refactor, stubs kept); the pause is PR review | `copilot-instructions.md` §1.3 is non-negotiable; the run is autonomous |
+| Q15 | `ADD_EMAIL`: new autostart type or new context? | New `AuthenticationAutostartContext` constant, per the ticket; the backend branch skips confirmation | The ticket names the constant and its shop-ui mirror |
+| Q16 | e2e provisioning of `portal_role_grants`? | identity-service `PUT /portal-roles/grants` behind the gateway header; specs skip without `E2E_IDENTITY_SERVICE_URL` | web-checkout-test never touches a database; no admin endpoint exists |
+| Q17 | Keep the `en_US/` and `de_DE/` catalogs in sync? | Untouched | Unreferenced by code, scripts, docs and CI |
+| Q18 | Topic retention? | 7 days (+ `.dlt`) | A resend must survive a consumer outage over a weekend; saved views use 1 day for a different purpose |
+
+Glossary terms introduced (recorded in each repo's `CONTEXT.md` during execution): **Identity service**,
+**Invitation mail** (variant 1 sign-in / variant 2 create-or-add), **Activation reason**, **Redirect
+target**, **Mail purpose**, **Processed invitation** (idempotency record), **Login hint**.
+
+ADRs to write (all three criteria hold): identity-service `0001-avro-over-modulith-outbox.md`,
+`0002-fresh-schema-not-replayed-history.md`, `0003-gateway-client-header-required.md`; marketplace
+`docs/adr/000x-invitation-module-verified-in-isolation.md`; gateway
+`0011-activation-result-relays-namespace.md`.
