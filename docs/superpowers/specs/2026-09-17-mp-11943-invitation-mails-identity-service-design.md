@@ -108,10 +108,9 @@ Modules (direct subpackages of `de.yatta.platform.identity`):
 | Module | Contents | Origin |
 |--------|----------|--------|
 | `platform` (OPEN) | `identity/{EndUserId, EndUserIdArgumentResolver, EmailMatchKey, MissingIdentityException, InvalidIdentityException, WebConfig, GatewayClientFilter}`, `id/PublicIdCodec`, `problem/*`, `events/IncompleteEventResubmitter`, `marketplace/*` (client), `audit/{Audited, AuditEventNames, AuditableOutcome}` | copied from vendor backend (package rename only) |
-| `memberships` | entity, service, repository, `api/*`, `events/MembershipInvitedEvent` | moved from vendor backend |
+| `memberships` | entity, service, repository, `api/*`, `events/{MembershipInvitedEvent, MembershipInvitedAvroMapper, KafkaExternalizationConfiguration}` and the generated Avro class | moved from vendor backend (+ new `events`) |
 | `portalroles` | as in vendor backend | moved |
 | `audit` | `internal/*`, Avro `platform.audit.v1-value.avsc` | moved |
-| `eventing` | `KafkaExternalizationConfiguration` (Modulith → Kafka with Avro) | new |
 
 `@Modulithic(systemName = "IdentityService")`; `ModularityTests` runs `verify()` and the `Documenter`.
 
@@ -159,10 +158,14 @@ snake_case, like `platform.audit.v1`. The schema file's `doc` fields are the con
 
 Domain event: `record MembershipInvitedEvent(String membershipId, String vendorNamespace, String email,
 String invitedByAccountId, String locale, Instant expiresAt, Instant occurredAt, String idempotencyKey)`,
-annotated `@Externalized("platform.identity.membership.v1::#{#this.membershipId()}")`, published with
-`ApplicationEventPublisher` from `MembershipService.write()` for both the fresh-invite and the renewal
-branch. `invite()` becomes `@Transactional` so the outbox row shares the write's transaction (the
-`@Audited` aspect runs around the proxy and is unaffected). `idempotencyKey = membershipId + ":" +
+annotated `@Externalized("platform.identity.membership.v1")` (no key expression — Modulith evaluates the
+SpEL against the *mapped* payload; the key comes from `.routeKey(MembershipInvitedEvent.class,
+MembershipInvitedEvent::membershipId)` in the externalization configuration). It is published with
+`ApplicationEventPublisher` from the per-address write in `MembershipService`, for both the fresh-invite
+and the renewal branch. `invite()` stays non-transactional (it holds a marketplace HTTP call and relies on
+catching `DataIntegrityViolationException` per address — a request-wide transaction would be marked
+rollback-only); instead each address's write + publish runs inside `TransactionOperations.execute(...)`,
+so the outbox row shares that address's transaction. `idempotencyKey = membershipId + ":" +
 occurredAt.toEpochMilli()` — a renewal is a new key, a redelivered record is the same key.
 
 Locale: the vendor backend never knew a locale, but the portal's `InviteEmailsModal` already hands
@@ -172,15 +175,18 @@ optional `locale` (BCP-47 language, default `en`, validated against `en|de`), th
 `inviteMembers(emails, locale)` in the portal sends it, and `MembershipService.invite(actingUser, emails,
 locale)` stamps it on the event. Absent = `en` at every hop.
 
-Externalization (`eventing` module): `EventExternalizationConfiguration` bean with
-`.select(annotatedAsExternalized()).mapping(MembershipInvitedEvent.class, MembershipInvitedMapper::toAvro)`,
-and a `ProducerFactory<Object,Object>` bean whose value serializer is Spring Kafka's
-`DelegatingByTypeSerializer(Map.of(SpecificRecord.class → KafkaAvroSerializer, Object.class →
-JsonSerializer), assignable = true)`. Boot builds its `KafkaTemplate` from that factory and Modulith's
-Kafka externalizer uses it; the audit lane stays on its own private template. The Avro serializer gets
-`auto.register.schemas=true` for this service's own subject (identity-service owns
-`platform.identity.membership.v1-value`; audit-service owns the audit subject, hence the audit lane
-keeps `false`). ADR 0001 in identity-service records this.
+Externalization (in `memberships/events`): `EventExternalizationConfiguration` bean with
+`.select(annotatedAsExternalized()).routeKey(MembershipInvitedEvent.class, MembershipInvitedEvent::membershipId)
+.mapping(MembershipInvitedEvent.class, MembershipInvitedAvroMapper::toAvro)`. Spring Modulith's Kafka lane
+normally pre-serializes every payload to JSON bytes (`KafkaJacksonConfiguration`, on by default) — that is
+why the vendor backend's JSON events need no serializer config, and why an Avro payload would never reach
+an Avro serializer. identity-service therefore sets `spring.modulith.events.kafka.enable-json: false` and
+configures Boot's producer with `spring.kafka.producer.value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer`
+and `spring.kafka.producer.properties.auto.register.schemas: true` (identity-service owns its own subject;
+the audit lane keeps its private template with `auto.register.schemas=false`, audit-service owns that subject).
+The `AuditConfiguration` warning about a global Avro serializer is reworded in the moved class: it applied
+to a service that also externalized JSON; identity-service externalizes nothing but Avro. ADR 0001 records
+this.
 
 Tests: `MembershipServiceTest` gains publish/no-publish cases (Mockito `ApplicationEventPublisher`);
 `MembershipInvitedEndToEndIT` (Postgres + `apache/kafka-native` containers, `schema.registry.url=mock://identity-it`
@@ -304,30 +310,30 @@ snapshot test into `target/mail-samples/` and attached to the PR.
 
 ### 5.6 Consumer + composer (MP-11950)
 
-- Dependencies: `spring-modulith-starter-core` + `spring-modulith-starter-test` (2.0.x, the Boot 4.0 line —
-  the gateway pins 2.0.0), `spring-kafka-test` (test). `ModularityTests`:
+- Dependencies: `spring-modulith-api` (compile: only `@ApplicationModule`) + `spring-modulith-starter-test` (test;
+  2.0.x, the Boot 4.0 line — the gateway pins 2.0.0), `spring-kafka-test` (test). Verification is test-only. `ModularityTests`:
   `ApplicationModules.of("com.yatta.platform")` then
-  `modules.getModuleByName("invitation").orElseThrow().verifyDependencies(modules)` — the whole-system
+  `modules.getModuleByName("invitation").orElseThrow().detectDependencies(modules).throwIfPresent()` — the whole-system
   `verify()` is not run (legacy-era target domains are not yet cycle-free; documented). `mail`, `account`,
   `vendor`, `shared` get `package-info.java` with `@ApplicationModule(type = OPEN)` so their nested
   packages count as API; `invitation` declares `allowedDependencies = {"mail", "account", "vendor",
   "shared"}` — a dependency on `payment`, `licensing`, `purchase`, `billing`, `booking` fails the test.
 - Kafka: `InvitationKafkaConfiguration` defines `membershipInvitedListenerContainerFactory`
   (record listener, `KafkaAvroDeserializer` with `specific.avro.reader=false` → `GenericRecord`,
-  `ErrorHandlingDeserializer`, group `marketplace-membership-invitations`, `DefaultErrorHandler(new
-  DeadLetterPublishingRecoverer(kafkaTemplate, → "<topic>.dlt"), new FixedBackOff(0, 0))` — zero retries,
-  WARN log). Consumer properties are derived from the existing `spring.kafka.properties.*` so SASL and
+  `ErrorHandlingDeserializer`, group `marketplace-membership-invitations`, `DefaultErrorHandler(new DeadLetterPublishingRecoverer(Map.of(byte[].class → a String/ByteArray template,
+  Object.class → the default Avro template), (rec, ex) -> new TopicPartition(rec.topic() + ".dlt", -1)), new FixedBackOff(0, 0))`
+  — zero retries, WARN log; raw bytes for a deserialization failure, the `GenericRecord` for a composer failure). Consumer properties are derived from the existing `spring.kafka.properties.*` so SASL and
   registry auth are inherited. The listener is `@ConditionalOnProperty("membership.invitation-mail.enabled")`
   (default off) — a flag off means no consumer group joins and no mail is sent.
 - `MembershipInvitedMessage.from(GenericRecord)` maps by field name (no copied `.avsc`, the registry
   is the single source of truth; NullAway-safe).
 - `InvitationMailComposer.compose(MembershipInvitedMessage)`:
-  1. idempotency: `ProcessedInvitationRepository.existsByIdempotencyKey` → skip; else insert first
-     (`V0381__processed_membership_invitation.sql`, unique key), in the same transaction as the send
-     decision; a send failure rolls the row back so the DLT record can be replayed once by an operator.
+  1. idempotency: native `INSERT … ON CONFLICT (idempotency_key) DO NOTHING` (`V0381__processed_membership_invitation.sql`)
+     as the first statement of the composer's one JPA transaction; 0 rows → redelivered, stop; a send failure rolls
+     the row back so the DLT record can be replayed once by an operator. Postgres serialises concurrent inserters.
   2. variant: `userService.findUserByEmail(email)` (the invitability service's own lookup) → known
      activated account = variant 1, else variant 2.
-  3. target: `RedirectTargetPolicy.validate("/" + locale + "/members?invited=1")`.
+  3. target: `RedirectTargetPolicy.validate("/" + locale + "/members?invited=1&email=" + urlEncode(email))` — the address rides along so an expired link, landing unauthenticated, can prefill the sign-in (MP-11953).
   4. links: the anchor is `UrlBasedRedirectAnchor.of(portalOrigin + target.path(), ...)` — after
      `POST /chckout/redirect/verify` confirms the address, `TokenServiceImpl.updateTokenCookie` sets the
      `YSC` token cookie on the API host, including the `/oauth2` path the authorization server reads, and
@@ -395,7 +401,7 @@ snapshot test into `target/mail-samples/` and attached to the PR.
   `useLastActivation()` via `useSyncExternalStore`) makes the result readable after boot.
   `MembersClient` renders `<InvitationLandingToast>` (client child under `<Suspense>`; reads
   `useSearchParams().get('invited')`; on mount with `invited=1` and a `granted` result shows one toast
-  `members.activation.accepted` (with vendor name from `usePortalContext()`) or `members.activation.alreadyMember`,
+  `members.activation.accepted` (no vendor name — the portal context holds only the id namespace) or `members.activation.alreadyMember`,
   then strips the marker with `history.replaceState`). The `vendor-scope-unavailable` screen in
   `SessionProvider` shows `session.invitationExpired` / `session.invitationNotFound` copy when `invited=1`
   is in the URL and the last activation was refused with that reason (this is where an expired invitee
@@ -434,11 +440,10 @@ endpoint (idempotent upsert, ADMIN/VIEWER). Branch name identical across repos, 
 `platform-services/identity-service.tf` cloned from the vendor backend file: `enable_identity_service`,
 `random_password` + Secrets Manager `${env}/identity-service/db-password`, `postgres-db-setup`
 (`identity`), `k8s-secret` `identity-service-db-secret`, topic `platform.identity.membership.v1`
-(`identity_membership_topic_retention_ms`, default 7 days — a resend must survive a weekend outage) plus
-its `.dlt` for the marketplace consumer group, service account `kafka-identity-service-sa-${env}` with
+(`identity_membership_topic_retention_ms`, default 7 days — a resend must survive a weekend outage) with
+`dlq_consumers = { "marketplace-membership-invitations" = { name = "platform.identity.membership.v1.dlt" } }`, service account `kafka-identity-service-sa-${env}` with
 write+describe on the topic (and audit topic when enabled), schema-registry read+write on
-`platform.identity.membership.v1-value` and read on the audit subject. Marketplace's existing service
-account gains read on the topic and the `.dlt` write (in `backend.tf`, conditional on the flag).
+`platform.identity.membership.v1-value` and read on the audit subject. The marketplace's existing service account (`module.platform_core_service_account` in `dunning-service.tf`, `kafka-platform-core-sa-${env}`) gains read+describe on the topic, write+describe on the `.dlt` and schema-registry read on `…v1-value` plus write on `…v1.dlt-value` (conditional on the flag).
 Optional Istio DENY policy `identity-service-internal-mesh-only` (flag off). `stage.tfvars` enables it.
 `docs/MP-11957-identity-service-data-migration.md` as in §4.2.
 

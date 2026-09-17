@@ -380,3 +380,153 @@ Composer per spec §5.6 (steps 1–6), `@Transactional`. `InvitationVariantResol
 - Spec coverage: §4.1–4.3 → A1–A3; §9 → A4; §4.2, §4.5 → B1–B2; §4.3 → B3; §4.4 → C1–C2; §5.4 → D1; §5.2 → D2–D3; §5.3 → D4–D5; §5.5 → E1; §5.6 → E2–E3; §5.7 → F1–F2; §6 → G1–G3; §7 → H1–H3; §8 → I1–I2; §12 glossary/ADRs → B1, C2, E2, G2.
 - Placeholder scan: no TBD/TODO; D3 contains a worked-through design correction (event carries the rendered URL) — carried into D2's record shape (`MagicLink(String url, DoubleOptInData data)`): **apply that shape in D2 directly.**
 - Type consistency: `RedirectTarget.path()` used by D1, D2, E3, F1; `MailPurpose.INVITE_*` in D4, E1, E3; `MembershipActivationResult` in G2/G3; `MembershipInvitedMessage` in E3; `InviteBody(emails, locale)` in C1/B3.
+
+---
+
+## Amendments after plan-eng-review (override the tasks they name)
+
+Review notes: `docs/superpowers/reviews/2026-09-17-mp-11943-plan-eng-review.md`.
+
+### A2 (override)
+- `GatewayClientFilter` reads `@Value("${identity.gateway-client.required:true}") boolean required` in its constructor — no `IdentityProperties` class (a `@WebMvcTest` slice would not carry the properties configuration). Every HTTP test in identity-service (MockMvc slices, `MembershipInviteRoleGateIT`, `MembershipInvitedEndToEndIT`, `MembershipsEndToEndIT`) sends `X-Gateway-Client: platform-gateway`.
+
+### B1 (override)
+- `V0003__create_portal_role_grants.sql` uses `CREATE OR REPLACE FUNCTION` and `CREATE OR REPLACE TRIGGER` (PostgreSQL 14+) so the fresh schema is replayable.
+
+### C2 (override)
+- No `eventing` module. Files: `memberships/events/{MembershipInvitedEvent, MembershipInvitedAvroMapper, KafkaExternalizationConfiguration}.java`; `memberships/package-info.java` gets `@ApplicationModule(allowedDependencies = {"platform"})` only if `ModularityTests` demands it (today it has no annotation — keep it that way unless verification fails).
+- `MembershipInvitedEvent` is `@Externalized("platform.identity.membership.v1")`. Configuration:
+```java
+@Configuration(proxyBeanMethods = false)
+class KafkaExternalizationConfiguration {
+    @Bean
+    EventExternalizationConfiguration eventExternalizationConfiguration() {
+        return EventExternalizationConfiguration.externalizing()
+                .select(EventExternalizationConfiguration.annotatedAsExternalized())
+                .routeKey(MembershipInvitedEvent.class, MembershipInvitedEvent::membershipId)
+                .mapping(MembershipInvitedEvent.class, MembershipInvitedAvroMapper::toAvro)
+                .build();
+    }
+}
+```
+- `application.yml` additions (identity-service):
+```yaml
+spring:
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        auto.register.schemas: true
+  modulith:
+    events:
+      kafka:
+        # Modulith's Kafka lane would otherwise JSON-encode every payload to byte[] before the serializer sees it.
+        enable-json: false
+```
+The moved `AuditConfiguration` javadoc paragraph about the global serializer is reworded (identity-service externalizes only Avro; the audit lane keeps its private template because audit-service owns that subject and registration stays off there).
+- `MembershipService`: constructor gains `ApplicationEventPublisher events` and `TransactionOperations tx` (tests: `mock(ApplicationEventPublisher.class)`, `TransactionOperations.withoutTransaction()`); `invite()` stays non-transactional; `fromVerdict`:
+```java
+try {
+    return tx.execute(status -> writeAndPublish(vendorNamespace, emailAsRequested, normalizedEmail, actingUser, now, locale));
+} catch (DataIntegrityViolationException e) { /* existing fallback */ }
+```
+`writeAndPublish` = today's `write()` with `events.publishEvent(MembershipInvitedEvent.of(saved, actingUser, locale, now))` after each `saveAndFlush` that returns `InviteOutcome.invited(...)`. Wire a `TransactionOperations` bean: `@Bean TransactionOperations transactionOperations(PlatformTransactionManager tm) { return new TransactionTemplate(tm); }` in `platform/PlatformConfiguration`.
+- `MembershipInvitedEndToEndIT` asserts `record.key()` equals the `mbr_` id and reads `GenericRecord` fields.
+
+### D2 / D3 (override — the "event carries the URL" text in D3 is withdrawn)
+```java
+public interface MagicLinkIssuer {
+    DoubleOptInData issueSignInToken(String email, RedirectTarget target, @Nullable VendorContext vendorContext);
+    AccountConfirmation issueSignUpToken(User user, RedirectTarget target, @Nullable VendorContext vendorContext, @Nullable String normalizedEmail);
+    String render(DoubleOptInData token, String email, RedirectTarget target, AuthenticationAutostartContext context, Locale locale,
+                  @Nullable String vendorNamespaceId, RequestOrigin requestOrigin, RedirectAnchor anchor, boolean skipAutostart);
+    MagicLink issueSignIn(String email, RedirectTarget target, Locale locale, RedirectAnchor anchor);   // token + render, skipAutostart = true; composer only
+    MagicLink issueSignUp(User user, String email, RedirectTarget target, Locale locale, RedirectAnchor anchor); // token + render; composer only
+}
+public record MagicLink(String dataId, String secret, String url, Instant expiresAt) {}
+```
+Target `AuthenticationInitiationServiceImpl` uses the two token methods and keeps publishing the two mail events exactly as today (no interface or event changes). Target `PlatformAccountMailServiceImpl.createMagicLink` delegates to `render(...)`. D3 stub constructor re-declares `@Autowired(required = false) @Nullable UserCheckService` and the new `MagicLinkIssuer` parameter; target constructor stays `public`, class non-final.
+
+### D4 (override)
+- The legacy resolver ends with zero callers after D5 → §1.3 **delete** case: Commit 2 deletes the legacy file and the legacy `AuthenticationEmailTemplate` record; the target `PlatformAccountMailServiceImpl` imports the target resolver directly. State the justification in the commit body.
+
+### D5 (override)
+- Stub keeps `@Component("platformAccountMailService")` and the legacy concrete type (`AccountEmailController:63` injects it by qualifier and class). Target class still `implements PlatformAccountMailService` (legacy interface; graduated exception, listed as debt in the class javadoc).
+
+### E2 (override)
+- Dependencies: `org.springframework.modulith:spring-modulith-api` (compile), `spring-modulith-starter-test` (test), `spring-kafka-test` (test), BOM `spring-modulith-bom` 2.0.0.
+```java
+@Test void invitationModuleDependsOnlyOnItsDeclaredNeighbours() {
+    modules.getModuleByName("invitation").orElseThrow().detectDependencies(modules).throwIfPresent();
+}
+```
+
+### E3 (override)
+- `ProcessedInvitationRepository`:
+```java
+@Modifying @Transactional(propagation = Propagation.MANDATORY)
+@Query(nativeQuery = true, value = "INSERT INTO processed_membership_invitation (id, idempotency_key, membership_id, processed_at) VALUES (:id, :key, :membershipId, :now) ON CONFLICT (idempotency_key) DO NOTHING")
+int claim(@Param("id") UUID id, @Param("key") String key, @Param("membershipId") String membershipId, @Param("now") Instant now);
+```
+Composer (`@Transactional`): `if (processed.claim(...) == 0) { log.info(...); return; }` then variant, links, send.
+- Redirect target: `"/" + locale + "/members?invited=1&email=" + URLEncoder.encode(email, UTF_8)`.
+- Container factory + error handler:
+```java
+@Bean ConcurrentKafkaListenerContainerFactory<String, GenericRecord> membershipInvitedListenerContainerFactory(KafkaProperties props, KafkaTemplate<String, Object> avroTemplate, InvitationMailProperties invitation) {
+    Map<String, Object> consumer = new HashMap<>(props.buildConsumerProperties());
+    consumer.put(ConsumerConfig.GROUP_ID_CONFIG, invitation.groupId());
+    consumer.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    consumer.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+    consumer.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, "io.confluent.kafka.serializers.KafkaAvroDeserializer");
+    consumer.put("specific.avro.reader", false);
+    consumer.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    var factory = new ConcurrentKafkaListenerContainerFactory<String, GenericRecord>();
+    factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(consumer));
+    var rawTemplate = new KafkaTemplate<>(new DefaultKafkaProducerFactory<Object, Object>(new HashMap<>(props.buildProducerProperties()), new StringSerializer(), new ByteArraySerializer()));
+    Map<Class<?>, KafkaOperations<?, ?>> templates = new LinkedHashMap<>();
+    templates.put(byte[].class, rawTemplate); templates.put(Object.class, avroTemplate);
+    var recoverer = new DeadLetterPublishingRecoverer(templates, (rec, ex) -> new TopicPartition(rec.topic() + ".dlt", -1));
+    factory.setCommonErrorHandler(new DefaultErrorHandler(recoverer, new FixedBackOff(0L, 0L)));
+    return factory;
+}
+```
+`InvitationKafkaConfiguration` and the listener carry `@ConditionalOnInvitationMailEnabled`; no `ConsumerFactory` bean is published. `RateLimitingMailInterceptor` is the target-package one (`com.yatta.platform.mail.service`).
+
+### F1 (override)
+- `AccountRegistrationService` (legacy interface) + `AccountRegistrationServiceImpl` (`@Named`) migrate together (Commit 1 move both; Commit 2 adds the `returnUrlPath` overload; stubs keep `@Named`). `ConfirmEmailAutostartParams` gains `email` (needed by shop-ui F2).
+
+### C1 portal (override)
+- `inviteMembers(emails, { locale, idempotencyKey = crypto.randomUUID() })`; adjust `gateway-graphql.test.ts:300-394` (variables `{ input: { emails, locale: 'en' } }`, header still asserted) and `MembersClient.test.tsx:489-512` (options object); delete the "locale dropped" paragraphs in `MembersClient.tsx:295-311` and the MP-11547 notes in `InviteEmailsModal.tsx:106-113, 432`.
+
+### G3 (override)
+- `SessionProvider`: `activation.outcome` at lines 368/372; `setState({ status: 'vendor-scope-unavailable', reason, activation })`; the screen reads `display.activation?.reason` — no store read in the provider. `SessionContext` type gains `activation?: ActivationResult`.
+- `SessionProvider.test.tsx`: default mock `:139` → `{ outcome: 'refused', reason: 'not_found', vendorNamespace: null }`; `:681, :706, :732, :753` → objects; new test: refused+expired with `?invited=1` in `window.location` shows `session.invitationExpired`.
+- Store: `useLastActivation()` = `useSyncExternalStore(subscribe, () => last, () => null)`; `__resetActivationForTests()`.
+- `MembersClient.test.tsx`: add `vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }))` and `vi.mock('@/components/members/InvitationLandingToast', () => ({ InvitationLandingToast: () => null }))`.
+- `src/lib/url-markers.ts` exports `stripMarkersFromUrl(...markers)`; `session-guard.ts` imports it (its private helper is removed); the toast strips `invited` and `email`.
+- i18n: `members.activation.{accepted,alreadyMember}` (no placeholder), `members.statusHints.expired`, `session.invitationExpired`, `session.invitationNotFound`; delete `team`, `invite`, `session.denied.areas.team` in BOTH catalogs; `docs/i18n.md` namespace list; `CLAUDE.md:93` placeholder list; `RequireCapability.test.tsx:66,79` → `area="theme"`; `routes.ts` comment + `/invite/accept` moves to the blocked list in `routes.test.ts`.
+- `<Suspense fallback={null}>` around the toast with a one-line comment (Next fails the static build without it).
+
+### H3 (override)
+- `ssoLoginUrl(continueTo, options?: { loginHint?: string })` appends `&login_hint=` only when set; `redirectToSso(continueTo, options)` calls `options ? ssoLoginUrl(continueTo, options) : ssoLoginUrl(continueTo)`; `handleUnauthorized`/SessionProvider pass `{ loginHint: emailFromInvitedUrl() }` where `emailFromInvitedUrl()` reads `email` only when `invited=1`. New `src/lib/__tests__/gateway.test.ts`.
+
+### F2 (override)
+- New `libs/account/src/lib/account-router/goto-add-email.action.ts`: `export class GotoAddEmail extends AccountGotoAction { static readonly type = '[AccountRouter] Goto add email'; }` re-exported from `account-router/index.ts`.
+- Branch in `apps/account-management/src/app/redirect/autostart.service.ts` before delegating: `if (params.type === 'confirmEmail' && params.context === 'ADD_EMAIL') return this.addEmailAutostartService.start(params)`, where `start` checks `SessionState.isSignedInWithAccount` → `GotoAddEmail({ queryParams: { email: params.email, redirect: params.returnPath } })` else `GotoSignIn({ redirect: <current URL> })`. `confirm-authentication-startup.guard.ts` only widens the coercion to keep `ADD_EMAIL`.
+- `ConfirmAuthenticationAutostartParams` gains `email: string | null`.
+- `AddEmailComponent`: `ActiveModal<{ email?: string; redirect?: string }>`; `ngOnInit` `patchValue`; `AddEmailAddress(email, redirect?)`; `profile.state.ts` body `{ email, ...(redirect ? { redirect } : {}) }` at `PLATFORM_ENVIRONMENT.apiUrl + '/account/email/registerNew'`.
+- `PLATFORM_ENVIRONMENT.vendorPortalUrl(subPath)` via `getEnvironmentRoot('portal')` in `libs/platform/src/lib/environment/`; `AssignedEmailService.getAssignedEmailNavigation(isSignedIn, redirect)` follows an absolute `redirect` whose origin equals `new URL(vendorPortalUrl('')).origin` through `AccountRouteService.finishWithRedirection`, else `/profile`.
+- `navigation.service.ts`: `openModalOn([GotoAddEmail], AddEmailModal)`.
+
+### I2 (override)
+- `import { test } from '../fixtures/subscription-users'`; `test.skip(!process.env.IDENTITY_SERVICE_URL, '…')` inside `beforeEach`; the env var is read in `e2e/utils/api-base-url.ts`; screenshots under `e2e/screenshots/portal-invitation-…-${Date.now()}.png`; helpers named: `getMagicLink` (`email-helpers.ts`), `pollForEmail`, `seedSession`, `openAddEmailForm`/`submitNewEmail` (`account-email.ts`), `registerUser`. The doc `e2e/docs/MP-11954-portal-invitation-plan.md` names the follow-up: an admin-authenticated gateway mutation for role grants.
+
+### A4 (override)
+- Topic module: `dlq_consumers = { "marketplace-membership-invitations" = { name = "platform.identity.membership.v1.dlt" } }`, `dlq_partitions = var.kafka_dlq_topic_partition`, `dlq_config = { "retention.ms" = tostring(var.identity_membership_topic_retention_ms) }`; reference `module.identity_membership_topic[0].dlq_names["marketplace-membership-invitations"]`.
+- `dunning-service.tf` `module.platform_core_service_account`: conditional additions — `read` + `describe` on `local.identity_membership_topic_name`, `write` + `describe` on `"${local.identity_membership_topic_name}.dlt"`, `schema_registry_permissions.read` on `"${local.identity_membership_topic_name}-value"`, `.write` on `"${local.identity_membership_topic_name}.dlt-value"` — all `var.enable_identity_service ? [...] : []` with literal names.
+- `terraform fmt -check -recursive platform-services` unconditional; `init -backend=false && validate` best effort.
+- Runbook: `docs/MP-11957-identity-service-data-migration-plan.md` with the Jira link header.
+
+### I1 (override)
+- `PortalRoleGrantRepository.findByVendorNamespaceAndEmail`; controller in `portalroles/api`; e-mail normalized with `EmailMatchKey.of` before the upsert (table `CHECK`).
