@@ -129,7 +129,7 @@ V0005 already reverses V0004 columns):
   `uq_memberships_vendor_email ON (vendor_namespace, LOWER(email))`, `idx_memberships_email`)
 - `V0003__create_portal_role_grants.sql` — final shape of V0006+V0007 (`role IN ('ADMIN','VIEWER')`, trigger)
 
-Data migration: `docs/MP-11957-identity-service-data-migration.md` in the infrastructure repo — a
+Data migration: `docs/MP-11957-data-migration.md` in the identity-service repo — a
 kubectl Job (`postgres:17-alpine`, same mechanism as `postgres-db-setup`) running `pg_dump --data-only
 -t memberships -t portal_role_grants` from `vendor` and `psql` into `identity`, with row-count
 verification, run at cut-over. Vendor-backend tables are dropped one release later (follow-up ticket,
