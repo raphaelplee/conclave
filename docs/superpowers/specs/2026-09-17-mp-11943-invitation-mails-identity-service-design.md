@@ -310,6 +310,11 @@ snapshot test into `target/mail-samples/` and attached to the PR.
 
 ### 5.6 Consumer + composer (MP-11950)
 
+> **Superseded during execution (2026-09-18):** the marketplace does not adopt Spring Modulith in this
+> delivery. No Modulith dependency, no `@ApplicationModule` annotations, no `ModularityTests`; the
+> invitation package documents its allowed neighbours in a plain `package-info.java`. The identity-service
+> half of this section is unchanged.
+
 - Dependencies: `spring-modulith-api` (compile: only `@ApplicationModule`) + `spring-modulith-starter-test` (test;
   2.0.x, the Boot 4.0 line — the gateway pins 2.0.0), `spring-kafka-test` (test). Verification is test-only. `ModularityTests`:
   `ApplicationModules.of("com.yatta.platform")` then
