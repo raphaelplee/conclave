@@ -1,2 +1,2 @@
-@[README](README.md)
-@[skills/executor/TAO](skills/executor/TAO)
+@README.md
+@skills/executor/TAO
