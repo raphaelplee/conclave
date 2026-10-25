@@ -3,7 +3,7 @@
 - Y.A.G.N.I
 - K.I.S.S
 - Principle of Least Astonishment/Surprise
-- Separation of Concern. Composition over Inheritance
+- Separation of Concerns. Composition over Inheritance
 - List all the domains and industries involved. Refer to the latest global standards in the domains and industries.
 - Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing your own
 - If in doubt, check the codebase, documents (verify documents against the latest state and latest code) and the internet (as of today)
