@@ -1,1 +1,0 @@
-../../../skills/executor/SKILL.md
