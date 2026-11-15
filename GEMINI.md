@@ -1,1 +1,2 @@
-@.agents/skills/executor/TAO
+@README.md
+@AGENTS.md

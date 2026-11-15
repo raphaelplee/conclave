@@ -1,7 +1,6 @@
 ---
 name: executor
 description: The executor invokes the Protocol as the Will commands, ever bound by the TAO
-argument-hint: will="<intent | command | description>"
 disable-model-invocation: true
 ---
 
@@ -12,4 +11,4 @@ Download these repositories to the session but do not load them into the context
 - https://github.com/obra/Superpowers
 - https://github.com/Egonex-AI/Understand-Anything
 
-Choose only 1 [protocol](protocols) according to the will, then run from top to bottom, never stops before the bottom. Bound by the [TAO](TAO). Attach TAO contents in every single call to the model
+Choose only 1 [protocol](protocols) according to the will, then run from top to bottom, never stops before the bottom. Bound by the [TAO](../../../AGENTS.md). Attach TAO contents in every single call to the model
