@@ -1,1 +1,1 @@
-../../../skills/executor/SKILL.md
+../../../.agents/skills/executor/SKILL.md
