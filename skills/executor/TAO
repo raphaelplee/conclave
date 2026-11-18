@@ -10,4 +10,5 @@
 - Verify every single constraint
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - DO NOT use the agents and the harnesses provided by the other repositories. Only this repo and the skills downloaded by this repo matters
+- Use simple precise terms
 - Utilise Author credentials instead of AI credentials
