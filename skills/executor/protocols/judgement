@@ -1,5 +1,5 @@
 id: judge
 skill: superpowers requesting-code-review
-will: fix ci, lint, sonar then review pull request
+will: (if any) fix ci, lint, sonar. Then review pull request
 deliverance: comment on pull request. reference other repos’ PRs and issues as owner/repo#N, never bare #N.
 hardgate: bound by the TAO
