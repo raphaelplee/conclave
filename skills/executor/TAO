@@ -1,4 +1,4 @@
-- D.R.Y. A single source of truth. Code as Documentation. Move all the comments from the code into the documents
+- D.R.Y. A single source of truth. Code is the source of truth. Code as documentation. Move all the comments from the code into the documents.
 - S.O.L.I.D
 - Y.A.G.N.I
 - K.I.S.S
@@ -11,4 +11,5 @@
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - DO NOT use the agents and the harnesses provided by the other repositories. Only this repo and the skills downloaded by this repo matters
 - Use simple precise terms
+- Trust the code over documents/comments
 - Utilise Author credentials instead of AI credentials
