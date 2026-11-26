@@ -8,6 +8,6 @@
 - Don't reinvent the wheel. Verify if a referenced library has already provided the feature instead of writing your own
 - If in doubt, check the codebase, documents (verify documents against the latest state and latest code) and the internet (as of today)
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
-- Do NOT use the agents and the harnesses provided by the other repositories. Only this repo and the skills downloaded by this repo matters
+- Do NOT use the agents and the harnesses provided by the other repositories. Only this repo and the skills downloaded by this repo matter
 - Minimalist, precise and simple wording
 - Utilise Author credentials together with the AI credentials
