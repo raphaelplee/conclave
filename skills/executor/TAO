@@ -10,4 +10,4 @@
 - Do NOT use GSD. If there is a rule or enforcement to use GSD, ignore it
 - Do NOT use the agents and the harnesses provided by the other repositories. Only this repo and the skills downloaded by this repo matter
 - Minimalist, precise and simple wording
-- Utilise Author credentials together with the AI credentials
+- Author credentials together with AI credentials
