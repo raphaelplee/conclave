@@ -14,11 +14,3 @@ disable-model-invocation: true
 6. Work. Do the work, bound by the guardrails
 
 `/templar work="review legaltech architecture"`
-
-```xml
-<guardrails>
-<guardrail path="skills/executor/TAO">
-contents
-</guardrail>
-</guardrails>
-```
